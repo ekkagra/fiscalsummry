@@ -29,6 +29,19 @@ else:
 
 # ICICI file
 dfI=pd.read_excel(ICFile)
+# Data Cleansing
+dfI=pd.read_excel('/media/ekkagra/New Volume/Finances/ICICI/Untitled 1.xlsx')
+dfI.dropna(axis=1,how='all',inplace=True)
+dfI.dropna(axis=0,how='all',inplace=True)
+dfI.dropna(axis=1,how='any',thresh=10,inplace=True)
+dfI.dropna(axis=0,how='any',thresh=5,inplace=True)
+dfI.columns=list(dfI.iloc[0])
+dfI.drop(dfI.index[0],axis=0,inplace=True)
+dfI.reset_index(inplace=True)
+dfI.drop(columns='index',inplace=True)
+dfI=dfI.astype({"Withdrawal Amount (INR )":float,"Deposit Amount (INR )":float,"Balance (INR )":float})
+dfI['Value Date']=pd.to_datetime(dfI['Value Date'])
+dfI['Transaction Date']=pd.to_datetime(dfI['Transaction Date'])
 # Replace remarks separators with / and split remarks into max 3 columns
 dfI['Transaction Remarks']=dfI['Transaction Remarks'].str.replace('-','/')
 dfI['Transaction Remarks']=dfI['Transaction Remarks'].str.replace(':','/')
@@ -43,6 +56,20 @@ dfICr_1=dfICr.loc[(dfICr['c1'] == 'NEFT') | ( dfICr['c1']== 'ACH')]
 
 # OBC File
 dfO=pd.read_excel(OBCFile)
+# Data Cleansing
+dfO.dropna(axis=1,how='all',inplace=True)
+dfO.dropna(axis=0,how='all',inplace=True)
+dfO.dropna(axis=1,how='any',thresh=10,inplace=True)
+dfO.dropna(axis=0,how='any',thresh=5,inplace=True)
+dfO.columns=list(dfO.iloc[0])
+dfO.drop(dfO.index[0],axis=0,inplace=True)
+dfO.reset_index(inplace=True)
+dfO.drop(columns='index',inplace=True)
+dfO.replace({'Debit':r',','Credit':r',','Account Balance':r','},{"Debit":'',"Credit":'',"Account Balance":''},regex=True,inplace=True)
+dfO.fillna(0,inplace=True)
+dfO=dfO.astype({"Debit":float,"Credit":float,"Account Balance":float})
+dfO['Value Date']=pd.to_datetime(dfI['Value Date'])
+dfO['Transaction Date']=pd.to_datetime(dfI['Transaction Date'])
 # dfO=dfO.drop(columns=['net','int'])
 # Replace narration separators with / 
 dfO['Narration']=dfO['Narration'].str.replace(':','/',2)
