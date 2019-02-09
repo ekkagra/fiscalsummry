@@ -14,23 +14,24 @@ OBCFile - str- Full file name(with path) for OBC bank statement file
 
 """
 def user_input(s):
-	if sys.version_info[0] == 3:
-		retStr = input(s)
-	else:
-		retStr = raw_input(s)
-	return retStr
+    if sys.version_info[0] == 3:
+        retStr = input(s)
+    else:
+        retStr = raw_input(s)
+    return retStr
 
-if len(sys.argv) != 3:
-	ICFile = user_input("ICICI File:")
-	OBCFile = user_input("OBC File:")
+if len(sys.argv) != 4:
+    ICFile = user_input("ICICI File:")
+    OBCFile = user_input("OBC File:")
+    outputFile = user_input("Output xlsx file:")
 else:
-	ICFile=sys.argv[1]
-	OBCFile=sys.argv[2]
+    ICFile=sys.argv[1]
+    OBCFile=sys.argv[2]
+    outputFile = sys.argv[3]
 
 # ICICI file
 dfI=pd.read_excel(ICFile)
 # Data Cleansing
-dfI=pd.read_excel('/media/ekkagra/New Volume/Finances/ICICI/Untitled 1.xlsx')
 dfI.dropna(axis=1,how='all',inplace=True)
 dfI.dropna(axis=0,how='all',inplace=True)
 dfI.dropna(axis=1,how='any',thresh=10,inplace=True)
@@ -81,10 +82,11 @@ dfOCr_1=dfOCr.loc[~dfOCr['Narration'].str.lower().str.contains('sweep|proceeds',
 dfSweep=dfOCr.loc[dfOCr['Narration'].str.lower().str.contains('sweep|proceeds',regex=True)].copy()
 # Logic for calculating approx FD Interest
 lm1= lambda x : int(x/5000)*5000
-dfSweep['FDInt']=dfSweep['Credit']-dfSweep['Credit'].apply(lm1)
+lm2= lambda x : 5000*int(x/1.028/5000*10+0.5)/10
+dfSweep['FDInt']=dfSweep['Credit']-dfSweep['Credit'].apply(lm2)
 
 # Save to Excel
-writer=pd.ExcelWriter('FiscalSummry.xlsx')
+writer=pd.ExcelWriter(outputFile)
 dfICr.to_excel(writer,'IC_NetCredit')
 dfICr_1.to_excel(writer,'IC_NEFT_ACH')
 dfOCr.to_excel(writer,'OBC_NetCredit')
