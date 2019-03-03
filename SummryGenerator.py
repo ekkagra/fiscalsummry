@@ -20,6 +20,35 @@ def user_input(s):
         retStr = raw_input(s)
     return retStr
 
+def cleanICFile(dfI):
+    dfI.dropna(axis=1,how='all',inplace=True)
+    dfI.dropna(axis=0,how='all',inplace=True)
+    dfI.dropna(axis=1,how='any',thresh=10,inplace=True)
+    dfI.dropna(axis=0,how='any',thresh=5,inplace=True)
+    dfI.columns=list(dfI.iloc[0])
+    dfI.drop(dfI.index[0],axis=0,inplace=True)
+    dfI.reset_index(inplace=True)
+    dfI.drop(columns='index',inplace=True)
+    dfI=dfI.astype({"Withdrawal Amount (INR )":float,"Deposit Amount (INR )":float,"Balance (INR )":float})
+    dfI['Value Date']=pd.to_datetime(dfI['Value Date'])
+    dfI['Transaction Date']=pd.to_datetime(dfI['Transaction Date'])
+    return dfI
+
+def cleanOBCFile(dfO):
+    dfO.dropna(axis=1,how='all',inplace=True)
+    dfO.dropna(axis=0,how='all',inplace=True)
+    dfO.dropna(axis=1,how='any',thresh=10,inplace=True)
+    dfO.dropna(axis=0,how='any',thresh=5,inplace=True)
+    dfO.columns=list(dfO.iloc[0])
+    dfO.drop(dfO.index[0],axis=0,inplace=True)
+    dfO.reset_index(inplace=True)
+    dfO.drop(columns='index',inplace=True)
+    dfO.replace({'Debit':r',','Credit':r',','Account Balance':r','},{"Debit":'',"Credit":'',"Account Balance":''},regex=True,inplace=True)
+    dfO.fillna(0,inplace=True)
+    dfO=dfO.astype({"Debit":float,"Credit":float,"Account Balance":float})
+    dfO['Value Date']=pd.to_datetime(dfO['Value Date'])
+    dfO['Transaction Date']=pd.to_datetime(dfO['Transaction Date'])
+
 if len(sys.argv) != 4:
     ICFile = user_input("ICICI File:")
     OBCFile = user_input("OBC File:")
@@ -29,20 +58,10 @@ else:
     OBCFile=sys.argv[2]
     outputFile = sys.argv[3]
 
-# ICICI file
+# --------- ICICI file
 dfI=pd.read_excel(ICFile)
 # Data Cleansing
-dfI.dropna(axis=1,how='all',inplace=True)
-dfI.dropna(axis=0,how='all',inplace=True)
-dfI.dropna(axis=1,how='any',thresh=10,inplace=True)
-dfI.dropna(axis=0,how='any',thresh=5,inplace=True)
-dfI.columns=list(dfI.iloc[0])
-dfI.drop(dfI.index[0],axis=0,inplace=True)
-dfI.reset_index(inplace=True)
-dfI.drop(columns='index',inplace=True)
-dfI=dfI.astype({"Withdrawal Amount (INR )":float,"Deposit Amount (INR )":float,"Balance (INR )":float})
-dfI['Value Date']=pd.to_datetime(dfI['Value Date'])
-dfI['Transaction Date']=pd.to_datetime(dfI['Transaction Date'])
+dfI=cleanICFile(dfI)
 # Replace remarks separators with / and split remarks into max 3 columns
 dfI['Transaction Remarks']=dfI['Transaction Remarks'].str.replace('-','/')
 dfI['Transaction Remarks']=dfI['Transaction Remarks'].str.replace(':','/')
@@ -55,22 +74,10 @@ dfICr=dfIC.loc[dfIC['Deposit Amount (INR )']>0]
 # Filter out records which are NEFT or ACH  
 dfICr_1=dfICr.loc[(dfICr['c1'] == 'NEFT') | ( dfICr['c1']== 'ACH')]
 
-# OBC File
+# --------- OBC File
 dfO=pd.read_excel(OBCFile)
 # Data Cleansing
-dfO.dropna(axis=1,how='all',inplace=True)
-dfO.dropna(axis=0,how='all',inplace=True)
-dfO.dropna(axis=1,how='any',thresh=10,inplace=True)
-dfO.dropna(axis=0,how='any',thresh=5,inplace=True)
-dfO.columns=list(dfO.iloc[0])
-dfO.drop(dfO.index[0],axis=0,inplace=True)
-dfO.reset_index(inplace=True)
-dfO.drop(columns='index',inplace=True)
-dfO.replace({'Debit':r',','Credit':r',','Account Balance':r','},{"Debit":'',"Credit":'',"Account Balance":''},regex=True,inplace=True)
-dfO.fillna(0,inplace=True)
-dfO=dfO.astype({"Debit":float,"Credit":float,"Account Balance":float})
-dfO['Value Date']=pd.to_datetime(dfI['Value Date'])
-dfO['Transaction Date']=pd.to_datetime(dfI['Transaction Date'])
+dfO=cleanOBCFile(dfO)
 # dfO=dfO.drop(columns=['net','int'])
 # Replace narration separators with / 
 dfO['Narration']=dfO['Narration'].str.replace(':','/',2)
@@ -82,6 +89,7 @@ dfOCr_1=dfOCr.loc[~dfOCr['Narration'].str.lower().str.contains('sweep|proceeds',
 dfSweep=dfOCr.loc[dfOCr['Narration'].str.lower().str.contains('sweep|proceeds',regex=True)].copy()
 # Logic for calculating approx FD Interest
 lm1= lambda x : int(x/5000)*5000
+# Calculates the round off Principal value for interest calculation
 lm2= lambda x : 5000*int(x/1.028/5000*10+0.5)/10
 dfSweep['FDInt']=dfSweep['Credit']-dfSweep['Credit'].apply(lm2)
 
