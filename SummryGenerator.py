@@ -1,5 +1,7 @@
 import sys
+import json
 import pandas as pd
+import datetime
 
 """
 Description
@@ -48,17 +50,17 @@ def cleanOBCFile(dfO):
     dfO=dfO.astype({"Debit":float,"Credit":float,"Account Balance":float})
     dfO['Value Date']=pd.to_datetime(dfO['Value Date'])
     dfO['Transaction Date']=pd.to_datetime(dfO['Transaction Date'])
-
-if len(sys.argv) != 4:
-    ICFile = user_input("ICICI File:")
-    OBCFile = user_input("OBC File:")
-    outputFile = user_input("Output xlsx file:")
-else:
-    ICFile=sys.argv[1]
-    OBCFile=sys.argv[2]
-    outputFile = sys.argv[3]
+    return dfO
 
 # --------- ICICI file
+try:
+    conf=json.load(open('config.json'))
+    ICFile=conf['ICFile']
+    OBCFile=conf['OBCFile']
+except Exception as e:
+    print("Error: Specify excel files in config.json | "+str(e))
+
+outputFile='summry_'+datetime.datetime.now().strftime("%Y%m%d_%H%M%S")+".xlsx"
 dfI=pd.read_excel(ICFile)
 # Data Cleansing
 dfI=cleanICFile(dfI)
