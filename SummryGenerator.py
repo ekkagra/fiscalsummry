@@ -1,5 +1,6 @@
 import sys
 import pandas as pd
+import argparse
 
 """
 Description
@@ -13,6 +14,7 @@ ICFile - str - Full file name(with path) for ICICI bank statement file
 OBCFile - str- Full file name(with path) for OBC bank statement file
 
 """
+
 def user_input(s):
     if sys.version_info[0] == 3:
         retStr = input(s)
@@ -48,15 +50,28 @@ def cleanOBCFile(dfO):
     dfO=dfO.astype({"Debit":float,"Credit":float,"Account Balance":float})
     dfO['Value Date']=pd.to_datetime(dfO['Value Date'])
     dfO['Transaction Date']=pd.to_datetime(dfO['Transaction Date'])
+    return dfO
 
-if len(sys.argv) != 4:
-    ICFile = user_input("ICICI File:")
-    OBCFile = user_input("OBC File:")
-    outputFile = user_input("Output xlsx file:")
+parser = argparse.ArgumentParser(description='Input Arguments for SummaryGenerator')
+parser.add_argument('--ic',dest='ICFile',help='ICICI Excel file location')
+parser.add_argument('--obc',dest='OBCFile',help='OBC Excel file location')
+parser.add_argument('--out',dest='outputFile',help='Output xlsx file name')
+
+args = parser.parse_args()
+args = vars(args)
+
+if args['ICFile']:
+    ICFile = args['ICFile']
 else:
-    ICFile=sys.argv[1]
-    OBCFile=sys.argv[2]
-    outputFile = sys.argv[3]
+    ICFile = user_input("ICICI File:")
+if args['OBCFile']:
+    OBCFile = args['OBCFile']
+else:
+    OBCFile = user_input("OBC File:")
+if args['outputFile']:
+    outputFile = args['outputFile']
+else:
+    outputFile = user_input("Output xlsx file:")
 
 # --------- ICICI file
 dfI=pd.read_excel(ICFile)
