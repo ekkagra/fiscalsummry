@@ -34,24 +34,23 @@ def cleanICFile(dfI):
     dfI.reset_index(inplace=True)
     dfI.drop(columns='index',inplace=True)
     dfI=dfI.astype({"Withdrawal Amount (INR )":float,"Deposit Amount (INR )":float,"Balance (INR )":float})
-    dfI['Value Date']=pd.to_datetime(dfI['Value Date'])
-    dfI['Transaction Date']=pd.to_datetime(dfI['Transaction Date'])
+    dfI['Value Date']=pd.to_datetime(dfI['Value Date'], format="%d/%m/%Y")
+    dfI['Transaction Date']=pd.to_datetime(dfI['Transaction Date'], format="%d/%m/%Y")
     return dfI
 
 def cleanOBCFile(dfO):
     dfO.dropna(axis=1,how='all',inplace=True)
     dfO.dropna(axis=0,how='all',inplace=True)
     dfO.dropna(axis=1,how='any',thresh=10,inplace=True)
-    dfO.dropna(axis=0,how='any',thresh=5,inplace=True)
+    dfO.dropna(axis=0,how='any',thresh=4,inplace=True)
     dfO.columns=list(dfO.iloc[0])
     dfO.drop(dfO.index[0],axis=0,inplace=True)
     dfO.reset_index(inplace=True)
     dfO.drop(columns='index',inplace=True)
-    dfO.replace({'Debit':r',','Credit':r',','Account Balance':r','},{"Debit":'',"Credit":'',"Account Balance":''},regex=True,inplace=True)
+    dfO.replace({'Deposit':r',','Withdrawal':r',','Balance':r',|Cr\.|Dr\.'},{"Deposit":'',"Withdrawal":'',"Balance":''},regex=True,inplace=True)
     dfO.fillna(0,inplace=True)
-    dfO=dfO.astype({"Debit":float,"Credit":float,"Account Balance":float})
-    dfO['Value Date']=pd.to_datetime(dfO['Value Date'])
-    dfO['Transaction Date']=pd.to_datetime(dfO['Transaction Date'])
+    dfO=dfO.astype({"Deposit":float,"Withdrawal":float,"Balance":float})
+    dfO['Transaction Date']=pd.to_datetime(dfO['Transaction Date'], format="%d/%m/%Y")
     return dfO
 
 parser = argparse.ArgumentParser(description='Input Arguments for SummaryGenerator')
@@ -107,7 +106,7 @@ if args['OBCFile']:
     # Replace narration separators with /
     dfO['Narration']=dfO['Narration'].str.replace(':','/',2)
     # Filter out records where credit is greater than 0
-    dfOCr=dfO.loc[dfO['Credit']>0]
+    dfOCr=dfO.loc[dfO['Deposit']>0]
     # Exclude records of SWEEP transactions
     dfOCr_1=dfOCr.loc[~dfOCr['Narration'].str.lower().str.contains('sweep|proceeds',regex=True)]
     # Separate out all Sweep Credit transactions
@@ -116,7 +115,7 @@ if args['OBCFile']:
     lm1= lambda x : int(x/5000)*5000
     # Calculates the round off Principal value for interest calculation
     lm2= lambda x : 5000*int(x/1.028/5000*10+0.5)/10
-    dfSweep['FDInt']=dfSweep['Credit']-dfSweep['Credit'].apply(lm2)
+    dfSweep['FDInt']=dfSweep['Deposit']-dfSweep['Deposit'].apply(lm2)
     OBCFileMade = True
 
 # Save to Excel
