@@ -27,14 +27,14 @@ def user_input(s):
 def cleanICFile(dfI):
     dfI.dropna(axis=1,how='all',inplace=True)
     dfI.dropna(axis=0,how='all',inplace=True)
-    dfI.dropna(axis=1,how='any',thresh=10,inplace=True)
-    dfI.dropna(axis=0,how='any',thresh=5,inplace=True)
+    dfI.dropna(axis=1,thresh=10,inplace=True)
+    dfI.dropna(axis=0,thresh=5,inplace=True)
     # dfI.columns=list(dfI.iloc[0])
     dfI.drop(dfI.index[0],axis=0,inplace=True)
     dfI.reset_index(inplace=True)
     dfI.drop(columns='index',inplace=True)
     print(dfI.columns)
-    dfI=dfI.astype({"Withdrawal Amount (INR )":float,"Deposit Amount (INR )":float,"Balance (INR )":float})
+    dfI=dfI.astype({"Withdrawal Amount ( )":float,"Deposit Amount ( )":float,"Balance ( )":float})
     dfI['Value Date']=pd.to_datetime(dfI['Value Date'], format="%d/%m/%Y")
     dfI['Transaction Date']=pd.to_datetime(dfI['Transaction Date'], format="%d/%m/%Y")
     return dfI
@@ -89,12 +89,12 @@ if args['ICFile']:
     # Replace remarks separators with / and split remarks into max 3 columns
     dfI['Transaction Remarks']=dfI['Transaction Remarks'].str.replace('-','/')
     dfI['Transaction Remarks']=dfI['Transaction Remarks'].str.replace(':','/')
-    expnd_remarks=dfI['Transaction Remarks'].str.split('/',3,expand=True)
+    expnd_remarks=dfI['Transaction Remarks'].str.split('/',n=3,expand=True)
     expnd_remarks.columns=['c1','c2','c3','c4']
     # Join expanded remarks df with original dfIC
     dfIC=pd.concat([dfI,expnd_remarks],axis=1)
     # Filter out records where deposit is greater than 0
-    dfICr=dfIC.loc[dfIC['Deposit Amount (INR )']>0]
+    dfICr=dfIC.loc[dfIC['Deposit Amount ( )']>0]
     # Filter out records which are NEFT or ACH
     dfICr_1=dfICr.loc[(dfICr['c1'] == 'NEFT') | ( dfICr['c1']== 'ACH')]
     ICFileMade = True
@@ -124,11 +124,13 @@ if args['OBCFile']:
 if ICFileMade or OBCFileMade:
     writer=pd.ExcelWriter(outputFile)
 if ICFileMade:
+    dfIC.to_excel(writer, 'ICICI')
     dfICr.to_excel(writer,'IC_NetCredit')
     dfICr_1.to_excel(writer,'IC_NEFT_ACH')
 if OBCFileMade:
+    dfO.to_excel(writer, 'PNB')
     dfOCr.to_excel(writer,'OBC_NetCredit')
     dfOCr_1.to_excel(writer,'OBC_nonSweep')
     dfSweep.to_excel(writer,'OBC_FDInt')
 if ICFileMade or OBCFileMade:
-    writer.save()
+    writer.close()
