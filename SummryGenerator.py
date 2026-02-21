@@ -27,9 +27,17 @@ def clean_ic_file(dfI: pd.DataFrame):
     # dfI.drop(dfI.index[0],axis=0,inplace=True)
     dfI.reset_index(inplace=True)
     dfI.drop(columns='index',inplace=True)
-    dfI=dfI.astype({"Withdrawal Amount (INR )":float,"Deposit Amount (INR )":float,"Balance (INR )":float})
-    dfI['Value Date']=pd.to_datetime(dfI['Value Date'], format="%d/%m/%Y")
-    dfI['Transaction Date']=pd.to_datetime(dfI['Transaction Date'], format="%d/%m/%Y")
+
+    column_names = dfI.columns.values
+    if not any(["withdrawal" in col.lower() for col in column_names]):
+        column_names: list[str] = dfI.iloc[0].values
+        dfI.drop(index=0, axis=0, inplace=True)
+    column_names = [name.replace(" ", "").upper() for name in column_names]
+    dfI.columns = column_names
+
+    dfI=dfI.astype({"WITHDRAWALAMOUNT(INR)":float,"DEPOSITAMOUNT(INR)":float,"BALANCE(INR)":float})
+    dfI['VALUEDATE']=pd.to_datetime(dfI['VALUEDATE'], format="%d/%m/%Y")
+    dfI['TRANSACTIONDATE']=pd.to_datetime(dfI['TRANSACTIONDATE'], format="%d/%m/%Y")
     return dfI
 
 def clean_pnb_file(dfO: pd.DataFrame):
@@ -41,10 +49,19 @@ def clean_pnb_file(dfO: pd.DataFrame):
     # dfO.drop(dfO.index[0],axis=0,inplace=True)
     dfO.reset_index(inplace=True)
     dfO.drop(columns='index',inplace=True)
-    dfO.replace({'Deposit':r',','Withdrawal':r',','Balance':r',|Cr\.|Dr\.'},{"Deposit":'',"Withdrawal":'',"Balance":''},regex=True,inplace=True)
-    dfO.fillna(0,inplace=True)
-    dfO=dfO.astype({"Deposit":float,"Withdrawal":float,"Balance":float})
-    dfO['Transaction Date']=pd.to_datetime(dfO['Transaction Date'], format="%d/%m/%Y")
+
+    column_names = dfO.columns.values
+    if not any(["withdrawal" in col.lower() for col in column_names]):
+        column_names: list[str] = dfO.iloc[0].values
+        dfO.drop(index=0, axis=0, inplace=True)
+    column_names = [str(name).replace(" ", "").upper() for name in column_names]
+    dfO.columns = column_names
+
+    dfO.drop(columns="NAN", inplace=True)
+    dfO.replace({'DEPOSIT':r',','WITHDRAWAL':r',','BALANCE':r',|Cr\.|Dr\.'},{"DEPOSIT":'',"WITHDRAWAL":'',"BALANCE":''},regex=True,inplace=True)
+    dfO=dfO.astype({"DEPOSIT":float,"WITHDRAWAL":float,"BALANCE":float})
+    dfO.fillna(0, inplace=True)
+    dfO['TRANSACTIONDATE']=pd.to_datetime(dfO['TRANSACTIONDATE'], format="%d/%m/%Y")
     return dfO
 
 def process_icici(files: list[str]) -> dict[str, pd.DataFrame]:
@@ -57,14 +74,14 @@ def process_icici(files: list[str]) -> dict[str, pd.DataFrame]:
         # Data Cleansing
         dfI=clean_ic_file(dfI)
         # Replace remarks separators with / and split remarks into max 3 columns
-        dfI['Transaction Remarks']=dfI['Transaction Remarks'].str.replace('-','/')
-        dfI['Transaction Remarks']=dfI['Transaction Remarks'].str.replace(':','/')
-        expnd_remarks=dfI['Transaction Remarks'].str.split('/',n=3,expand=True)
+        dfI['TRANSACTIONREMARKS']=dfI['TRANSACTIONREMARKS'].str.replace('-','/')
+        dfI['TRANSACTIONREMARKS']=dfI['TRANSACTIONREMARKS'].str.replace(':','/')
+        expnd_remarks=dfI['TRANSACTIONREMARKS'].str.split('/',n=3,expand=True)
         expnd_remarks.columns=['c1','c2','c3','c4']
         # Join expanded remarks df with original dfIC
         dfIC=pd.concat([dfI,expnd_remarks],axis=1)
         # Filter out records where deposit is greater than 0
-        dfICr=dfIC.loc[dfIC['Deposit Amount (INR )']>0]
+        dfICr=dfIC.loc[dfIC['DEPOSITAMOUNT(INR)']>0]
         # Filter out records which are NEFT or ACH
         dfICr_1=dfICr.loc[(dfICr['c1'] == 'NEFT') | ( dfICr['c1']== 'ACH')]
 
@@ -89,13 +106,13 @@ def process_pnb(files: list[str]) -> dict[str, pd.DataFrame]:
         dfO=clean_pnb_file(dfO)
         # dfO=dfO.drop(columns=['net','int'])
         # Replace narration separators with /
-        dfO['Narration']=dfO['Narration'].str.replace(':','/',2)
+        dfO['NARRATION']=dfO['NARRATION'].str.replace(':','/',2)
         # Filter out records where credit is greater than 0
-        dfOCr=dfO.loc[dfO['Deposit']>0]
+        dfOCr=dfO.loc[dfO['DEPOSIT']>0]
         # Exclude records of SWEEP transactions
-        dfOCr_1=dfOCr.loc[~dfOCr['Narration'].str.lower().str.contains('sweep|proceeds|tax|repayment credit',regex=True)]
+        dfOCr_1=dfOCr.loc[~dfOCr['NARRATION'].str.lower().str.contains('sweep|proceeds|tax|repayment credit',regex=True)]
         # Separate out all Sweep Credit transactions
-        dfSweep=dfOCr.loc[dfOCr['Narration'].str.lower().str.contains('tax',regex=True)].copy()
+        dfSweep=dfOCr.loc[dfOCr['NARRATION'].str.lower().str.contains('tax',regex=True)].copy()
         # Logic for calculating approx FD Interest
         lm1= lambda x : int(x/5000)*5000
         # Calculates the round off Principal value for interest calculation
@@ -120,6 +137,7 @@ def process_cc(files: list[str]) -> dict[str, pd.DataFrame]:
     dfs_full: list[pd.DataFrame] = []
 
     for file in files:
+        print(file)
         with open(file) as f:
             fc = f.read()
 
@@ -139,7 +157,7 @@ def process_cc(files: list[str]) -> dict[str, pd.DataFrame]:
     return {"out": pd.concat(dfs_full, ignore_index=True)}
 
 def main():
-    parser = argparse.ArgumentParser(description='Input Arguments for SummaryGenerator')
+    parser = argparse.ArgumentParser(description='Input Arguments for SummaryGenerator. Make sure to unmerge cells in source xlsx files')
     parser.add_argument("files", nargs='+')
     parser.add_argument('--ic', action='store_true', help='ICICI mode')
     parser.add_argument('--pnb', action='store_true', help='PNB mode')
